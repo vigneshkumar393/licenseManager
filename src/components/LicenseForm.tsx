@@ -99,7 +99,6 @@ export default function LicenseForm({ onSuccess }: LicenseFormProps) {
 
       setLicenseKey(data.licenseKey);
       toast.success('License created successfully!');
-      onSuccess?.();
     } catch (err: any) {
       setError(err.message);
     } finally {
