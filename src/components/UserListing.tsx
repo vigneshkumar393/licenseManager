@@ -4,8 +4,9 @@ import { useState, useEffect, ReactNode } from 'react';
 import Dialog from './Dialog';
 import RenewDialog from './RenewDialog';
 import toast from 'react-hot-toast';
+import Subscription, { ISubscription } from '../../models/subscription';
 
-interface User {
+export interface IUser {
   _id: string;
   clientName: string;
   clientEmail: string;
@@ -13,8 +14,8 @@ interface User {
   licenseKey: string;
   validFrom?: string;
   validTo?: string;
+  subscriptionId: ISubscription; // Reference to Subscription type
 }
-
 interface UserListingProps {
   search: string;
   refresh?: boolean;  // add this
@@ -116,6 +117,7 @@ useEffect(() => {
               ...user,
               validFrom: updatedLicense.validFrom,
               validTo: updatedLicense.validTo,
+              licenseKey:updatedLicense.licenseKey
             }
           : user
       )
@@ -208,7 +210,13 @@ useEffect(() => {
       setDeleteTargetId(null);
     }
   }
-
+const planBgColors: { [key: string]: string } = {
+  free: '#3B82F6', // Blue
+  basic: '#10B981', // Green
+  standard: '#F59E0B', // Yellow
+  premium: '#8B5CF6', // Purple
+  enterprise: '#EF4444', // Red
+};
   const handlePrev = () => setPage((p) => Math.max(p - 1, 1));
   const handleNext = () => setPage((p) => Math.min(p + 1, totalPages));
 
@@ -221,13 +229,14 @@ useEffect(() => {
         <table className="w-full border-collapse border border-gray-300 table-fixed">
           <thead>
             <tr>
-              <th className="border p-2 text-left">Client Name</th>
-              <th className="border p-2 text-left">Email</th>
-              <th className="border p-2 text-left">MAC Address</th>
-              <th className="border p-2 text-left max-w-xs">License Key</th>
-              <th className="border p-2 text-left">Valid From</th>
-              <th className="border p-2 text-left">Valid To</th>
-              <th className="border p-2 text-left w-36">Actions</th>
+              <th className="border p-2 text-center">Client Name</th>
+              <th className="border p-2 text-center">Email</th>
+              <th className="border p-2 text-center">MAC Address</th>
+              <th className="border p-2 text-center max-w-xs">License Key</th>
+              <th className="border p-2 text-center">Subscription</th>
+              <th className="border p-2 text-center">Valid From</th>
+              <th className="border p-2 text-center">Valid To</th>
+              <th className="border p-2 text-center w-36">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -253,7 +262,7 @@ useEffect(() => {
                       style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
                     >
                       <div className="flex items-start space-x-2">
-                        <span>{user.licenseKey}</span>
+                       <span>{user.licenseKey.slice(0, 20)}...</span>
                         <button
                           onClick={() => handleCopy(user.licenseKey)}
                           className="text-gray-500 hover:text-gray-700 focus:outline-none mt-1"
@@ -277,8 +286,26 @@ useEffect(() => {
                         </button>
                       </div>
                     </td>
-                    <td className="border p-2">{user.validFrom ? new Date(user.validFrom).toLocaleDateString() : 'N/A'}</td>
-                    <td className="border p-2">{user.validTo ? new Date(user.validTo).toLocaleDateString() : 'N/A'}</td>
+ <td className="border p-2 text-center">
+  <button
+    style={{
+      backgroundColor: planBgColors[user.subscriptionId.planName] ?? 'grey',
+      color: 'white',
+      fontWeight: 'bold',
+      padding: '10px 20px',
+      borderRadius: '8px',
+      border: 'none',
+      cursor: 'pointer',
+      opacity: 0.5,
+    }}
+  >
+    {user.subscriptionId.planName}
+  </button>
+</td>
+
+
+                    <td className="border p-2">{user.validFrom ? formatDate(new Date(user.validFrom).toLocaleDateString()) : 'N/A'}</td>
+                    <td className="border p-2">{user.validTo ? formatDate(new Date(user.validTo).toLocaleDateString()) : 'N/A'}</td>
                     <td className="border p-2">
                       <div className="flex space-x-2">
                           <button
@@ -397,3 +424,17 @@ useEffect(() => {
     </div>
   );
 }
+
+function formatDate(dateString?: string): string {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // month is 0-based
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+function generateCustomLicense(macAddress: any, fromDate: any, toDate: any) {
+  throw new Error('Function not implemented.');
+}
+

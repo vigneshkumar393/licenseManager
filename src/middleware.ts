@@ -2,12 +2,15 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get('token')?.value; // get the cookie value
+  const token = request.cookies.get('token')?.value;
   const url = request.nextUrl.clone();
 
-  // Protect /user-listing route
-  if (url.pathname === '/user-listing' && !token) {
-    url.pathname = '/'; // redirect to home or login
+  // List of protected routes
+  const protectedPaths = ['/user-listing', '/subscription', '/home'];
+
+  // If trying to access a protected route without a token, redirect to login page
+  if (protectedPaths.some(path => url.pathname.startsWith(path)) && !token) {
+    url.pathname = '/'; // redirect to login
     return NextResponse.redirect(url);
   }
 
@@ -15,5 +18,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/user-listing'],
+  matcher: ['/user-listing', '/subscription', '/home'],
 };

@@ -15,10 +15,14 @@ export async function GET(request: Request) {
 
   const skip = (page - 1) * limit;
 
-  const [licenses, total] = await Promise.all([
-    License.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
-    License.countDocuments(),
-  ]);
+const [licenses, total] = await Promise.all([
+  License.find()
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate('subscriptionId'), // Populate subscription document
+  License.countDocuments(),
+]);
 
   return NextResponse.json({
     licenses,

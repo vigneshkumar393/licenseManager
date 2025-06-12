@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import License from '../../../../../../models/License';
 import connectDB from '../../../../../../lib/db';
-
+import { generateCustomLicense } from '@/lib/license';
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   const id = params.id;
 
@@ -16,11 +16,23 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ message: 'validFrom and validTo are required' }, { status: 400 });
     }
 
+    const existingLicense = await License.findById(id);
+    if (!existingLicense) {
+      return NextResponse.json({ message: 'License not found' }, { status: 404 });
+    }
+
+    const newLicenseKey = generateCustomLicense(
+      existingLicense.macAddress,
+      new Date(validFrom),
+      new Date(validTo)
+    );
+
     const license = await License.findByIdAndUpdate(
       id,
       {
         validFrom: new Date(validFrom),
         validTo: new Date(validTo),
+        licenseKey:newLicenseKey
       },
       { new: true }
     );

@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+  "migrate:subscriptions": "node src/migration/migrateSubscriptionPlans.js"
   },
   "dependencies": {
     "@mantine/core": "^8.0.1",
