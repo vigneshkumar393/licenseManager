@@ -19,7 +19,12 @@ function formatDate(date: Date): string {
 }
 
 // Generate custom license key — accepts mac string and Date objects for fromDate/toDate
-export function generateCustomLicense(mac: string, fromDate: Date, toDate: Date): string {
+export function generateCustomLicense(
+  mac: string,
+  fromDate: Date,
+  toDate: Date,
+  plan: any
+): string {
   const fromDateStr = formatDate(fromDate);
   const toDateStr = formatDate(toDate);
 
@@ -29,11 +34,25 @@ export function generateCustomLicense(mac: string, fromDate: Date, toDate: Date)
   let license = getRandom8(); // Initial random block
 
   for (let ch of rawData) {
-    license += ch + getRandom8(); // Insert char and 8 randoms
+    license += ch + getRandom8();
   }
+
+  const planDataStr = JSON.stringify({
+    planName: plan.planName,
+    SnHttpClient: plan.SnHttpClient,
+    SnScheduler: plan.SnScheduler,
+    SnAlarm: plan.SnAlarm,
+    SnHistory: plan.SnHistory,
+  });
+
+  const encodedPlan = Buffer.from(planDataStr).toString("base64");
+ 
+  license += "S15" + encodedPlan; // Use S15 as delimiter
 
   return license;
 }
+
+
 
 // Decrypt license key — unchanged, returns structured JSON object
 export function decryptCustomLicense(license: string): Record<string, any> {
@@ -45,9 +64,11 @@ export function decryptCustomLicense(license: string): Record<string, any> {
   }
 
   try {
+    const [mainPart, encodedPlan] = license.split("S15");
+
     let original = "";
-    for (let i = 8; i < license.length; i += 9) {
-      original += license[i];
+    for (let i = 8; i < mainPart.length; i += 9) {
+      original += mainPart[i];
     }
 
     if (original.length !== 28) {
@@ -65,11 +86,16 @@ export function decryptCustomLicense(license: string): Record<string, any> {
     const fromDate = `${fromDateRaw.substring(0, 4)}-${fromDateRaw.substring(4, 6)}-${fromDateRaw.substring(6, 8)}`;
     const toDate = `${toDateRaw.substring(0, 4)}-${toDateRaw.substring(4, 6)}-${toDateRaw.substring(6, 8)}`;
 
+    const planDetails = encodedPlan
+      ? JSON.parse(Buffer.from(encodedPlan, "base64").toString("utf-8"))
+      : null;
+
     return {
       result: true,
       mac: formattedMac,
       fromDate,
       toDate,
+      plan: planDetails,
       message: "License decoded successfully."
     };
   } catch (e: any) {
@@ -79,3 +105,5 @@ export function decryptCustomLicense(license: string): Record<string, any> {
     };
   }
 }
+
+

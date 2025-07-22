@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import License from '../../../../../../models/License';
 import connectDB from '../../../../../../lib/db';
 import { generateCustomLicense } from '@/lib/license';
+import Subscription from '../../../../../../models/subscription';
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   const id = params.id;
 
@@ -21,12 +22,20 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ message: 'License not found' }, { status: 404 });
     }
 
+        // Fetch subscription details by subscriptionId
+    const subscription = await Subscription.findById(existingLicense.subscriptionId);
+    if (!subscription) {
+      return NextResponse.json({ message: 'Subscription not found' }, { status: 404 });
+    }
+
+    // Pass full subscription object to the license generator
     const newLicenseKey = generateCustomLicense(
       existingLicense.macAddress,
       new Date(validFrom),
-      new Date(validTo)
+      new Date(validTo),
+      subscription.toObject()// 👈 pass full subscription object
     );
-
+  
     const license = await License.findByIdAndUpdate(
       id,
       {

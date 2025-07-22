@@ -234,8 +234,21 @@ export default function LicenseForm({ onSuccess }: LicenseFormProps) {
         throw new Error('Please select a subscription plan.');
       }
 
+      console.log(plans.find((o)=>o._id==form.selectedPlanId))
+      let plan = plans.find((o)=>o._id==form.selectedPlanId);
       // Generate the license key using the macAddress and dates
-      const generatedLicenseKey = generateCustomLicense(form.macAddress, fromDate, toDate);
+      const generatedLicenseKey = generateCustomLicense(form.macAddress, fromDate,toDate, plan);
+      
+const result = decryptCustomLicense(generatedLicenseKey);
+
+if (result.result) {
+  console.log("MAC Address:", result.mac);
+  console.log("From Date:", result.fromDate);
+  console.log("To Date:", result.toDate);
+  console.log("Plan Details:", result.plan); // { planName, SnHttpClient, ... }
+} else {
+  console.error("Failed to decode license:", result.message);
+}
 
       // Send data to your API endpoint
       // Assuming you have an API endpoint that handles both license and subscription creation/linking
