@@ -84,7 +84,7 @@ setSubIsDialogOpen(true);
       {/* ✅ Below TopBar: Sidebar + Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className="w-1/6 bg-gray-100 p-4 border-r overflow-auto">
+        <div className="w-1/9 bg-gray-100 p-4 border-r overflow-auto">
           <h2 className="text-lg font-bold mb-4">Dashboard</h2>
           <ul className="space-y-2">
             <li>
@@ -118,7 +118,9 @@ setSubIsDialogOpen(true);
     refreshList={refreshList}
     isDialogOpen={isDialogOpen}
     setIsDialogOpen={setIsDialogOpen}
-    toggleRefresh={() => setRefreshList((prev) => !prev)}
+    toggleRefresh={() => {
+      console.log("triggered")
+      setRefreshList((prev) => !prev)}}
   />}
  {activeTab === 'subscription' && (
   <>

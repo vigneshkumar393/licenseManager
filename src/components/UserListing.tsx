@@ -5,6 +5,8 @@ import Dialog from './Dialog';
 import RenewDialog from './RenewDialog';
 import toast from 'react-hot-toast';
 import Subscription, { ISubscription } from '../../models/subscription';
+import { Pencil } from 'lucide-react';
+import LicenseForm from './LicenseForm';
 
 export interface IUser {
   _id: string;
@@ -19,11 +21,12 @@ export interface IUser {
 interface UserListingProps {
   search: string;
   refresh?: boolean;  // add this
+  toggleRefresh:Function
 }
 
 
-export default function UserListing({ search, refresh }: UserListingProps) {
-  const [users, setUsers] = useState<User[]>([]);
+export default function UserListing({ search, refresh,toggleRefresh }: UserListingProps) {
+  const [users, setUsers] = useState<IUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
@@ -37,6 +40,9 @@ export default function UserListing({ search, refresh }: UserListingProps) {
   const [renewingIds, setRenewingIds] = useState<Set<string>>(new Set());
   const [renewValidFrom, setRenewValidFrom] = useState<string>('');
   const [renewValidTo, setRenewValidTo] = useState<string>('');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -188,6 +194,11 @@ useEffect(() => {
     setDeleteDialogOpen(true);
   }
   
+  function promptEdit(id: string) {
+    setDeleteTargetId(id);
+    setDeleteDialogOpen(true);
+  }
+
   function openRenewDialog(id: string, currentValidFrom?: string, currentValidTo?: string) {
   setRenewTargetId(id);
   setRenewValidFrom(currentValidFrom ? currentValidFrom.slice(0, 10) : '');
@@ -306,8 +317,8 @@ const planBgColors: { [key: string]: string } = {
 
                     <td className="border p-2">{user.validFrom ? formatDate(new Date(user.validFrom).toLocaleDateString()) : 'N/A'}</td>
                     <td className="border p-2">{user.validTo ? formatDate(new Date(user.validTo).toLocaleDateString()) : 'N/A'}</td>
-                    <td className="border p-2">
-                      <div className="flex space-x-2">
+                   <td className="space-x-2">
+                      <div className="flex space-x-1 p-1">
                           <button
                           disabled={!expired || isRenewing}
                           onClick={() =>
@@ -322,9 +333,22 @@ const planBgColors: { [key: string]: string } = {
                         >
                           {isRenewing ? 'Renewing...' : 'Renew'}
                         </button>
+<button
+  onClick={() => {
+    setEditId(user._id);        // Pass selected user/license ID
+    setShowEditDialog(true);    // Open the dialog
+  }}
+  className="p-2 rounded bg-gray-200 hover:bg-gray-300"
+  type="button"
+  title="Edit License"
+>
+  <Pencil size={16} color="black" />
+</button>
+
+
                         <button
                           onClick={() => promptDelete(user._id)}
-                          className="px-3 py-1 rounded text-white bg-red-600 hover:bg-red-700 text-sm"
+                          className="px-1 py-1 rounded text-white bg-red-600 hover:bg-red-700 text-sm"
                           type="button"
                           title="Delete License"
                         >
@@ -396,6 +420,37 @@ const planBgColors: { [key: string]: string } = {
         initialValidTo={renewInitialValidTo}
         loading={renewTargetId ? renewingIds.has(renewTargetId) : false}
       />
+
+{showEditDialog && (
+ <div  className="fixed inset-0 flex items-center justify-center bg-transparent backdrop-blur-[2px] z-50">
+    <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full z-50 relative">
+      <h2 className="text-lg font-bold mb-4">Edit License</h2>
+
+      <LicenseForm
+        licenseId={editId!}
+        onSuccess={() => {
+          console.log("update success");
+          setShowEditDialog(false);
+          setEditId(null);
+          toggleRefresh();
+        }}
+      />
+
+      {/* Centered and larger cancel button */}
+      <div className="mt-6 flex justify-center">
+        <button
+          onClick={() => {
+            setShowEditDialog(false);
+            setEditId(null);
+          }}
+          className="px-8 py-3 text-lg bg-red-500 text-white rounded-lg hover:bg-red-600"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Delete Confirmation Dialog */}
       <Dialog

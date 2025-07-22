@@ -136,9 +136,10 @@ function getNextDay(dateStr: string): string {
 
 type LicenseFormProps = {
   onSuccess?: () => void;
+  licenseId?: string; // <-- NEW: Optional ID to trigger edit mode
 };
 
-export default function LicenseForm({ onSuccess }: LicenseFormProps) {
+export default function LicenseForm({ onSuccess,licenseId }: LicenseFormProps) {
   const today = getToday();
 
   // State for form inputs, including the new selectedPlanId
@@ -170,6 +171,50 @@ export default function LicenseForm({ onSuccess }: LicenseFormProps) {
   const [loading, setLoading] = useState(false); // For form submission
   const [error, setError] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false); // Track dialog state
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  useEffect(() => {
+  async function fetchLicense() {
+    if (!licenseId) return;
+
+    try {
+      setLoading(true);
+      
+      const res = await fetch(`/api/licenses/${licenseId}`);
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Failed to load license.");
+
+      const {
+        clientName,
+        clientEmail,
+        macAddress,
+        validFrom,
+        validTo,
+        subscriptionId,
+        licenseKey,
+      } = data.license;
+
+      setForm({
+        clientName,
+        clientEmail,
+        macAddress,
+        validFrom: validFrom?.split("T")[0],
+        validThru: validTo?.split("T")[0],
+        selectedPlanId: subscriptionId,
+      });
+
+      setIsEditMode(true);
+    } catch (err: any) {
+      toast.error("Edit mode failed: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  fetchLicense();
+}, [licenseId]);
+
 
   useEffect(() => {
     async function fetchPlans() {
@@ -215,75 +260,51 @@ export default function LicenseForm({ onSuccess }: LicenseFormProps) {
 
   // Handles form submission
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setLicenseKey('');
-  console.log(customFields);
-    try {
-      // Validate dates
-      const fromDate = new Date(form.validFrom);
-      const toDate = new Date(form.validThru);
+  e.preventDefault();
+  setLoading(true);
+  setError('');
+  setLicenseKey('');
 
-      if (toDate <= fromDate) {
-        throw new Error('Valid Thru date must be after Valid From date.');
-      }
+  try {
+    const fromDate = new Date(form.validFrom);
+    const toDate = new Date(form.validThru);
 
-      // Validate plan selection
-      if (!form.selectedPlanId) {
-        throw new Error('Please select a subscription plan.');
-      }
+    if (toDate <= fromDate) throw new Error('Valid Thru date must be after Valid From.');
 
-      console.log(plans.find((o)=>o._id==form.selectedPlanId))
-      let plan = plans.find((o)=>o._id==form.selectedPlanId);
-      // Generate the license key using the macAddress and dates
-      const generatedLicenseKey = generateCustomLicense(form.macAddress, fromDate,toDate, plan);
-      
-const result = decryptCustomLicense(generatedLicenseKey);
+    const plan = plans.find((o) => o._id === form.selectedPlanId);
+    if (!plan) throw new Error("Subscription plan not found.");
 
-if (result.result) {
-  console.log("MAC Address:", result.mac);
-  console.log("From Date:", result.fromDate);
-  console.log("To Date:", result.toDate);
-  console.log("Plan Details:", result.plan); // { planName, SnHttpClient, ... }
-} else {
-  console.error("Failed to decode license:", result.message);
-}
+    const generatedLicenseKey = generateCustomLicense(form.macAddress, fromDate, toDate, plan);
+    const endpoint = isEditMode ? `/api/licenses/update/${licenseId}` : '/api/licenses/create';
 
-      // Send data to your API endpoint
-      // Assuming you have an API endpoint that handles both license and subscription creation/linking
-      const res = await fetch('/api/licenses/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientName: form.clientName,
-          clientEmail: form.clientEmail,
-          macAddress: form.macAddress,
-          validFrom: form.validFrom, // Send as string to backend for easier Date parsing there
-          validTo: form.validThru,   // Send as string
-          licenseKey: generatedLicenseKey,
-          subscriptionId: form.selectedPlanId, // Pass the selected plan ID
-        }),
-      });
+    const res = await fetch(endpoint, {
+      method: isEditMode ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientName: form.clientName,
+        clientEmail: form.clientEmail,
+        macAddress: form.macAddress,
+        validFrom: form.validFrom,
+        validTo: form.validThru,
+        licenseKey: generatedLicenseKey,
+        subscriptionId: form.selectedPlanId,
+      }),
+    });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to create license and subscription');
-      }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to save license.");
 
-      // If successful, display the generated license key and show a success toast
-      setLicenseKey(data.licenseKey);
-      toast.success('License and Subscription created successfully!');
-      if (onSuccess) {
-        onSuccess(); // Call onSuccess callback if provided
-      }
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message); // Show toast for errors
-    } finally {
-      setLoading(false);
-    }
-  };
+    setLicenseKey(data.licenseKey || generatedLicenseKey);
+    toast.success(isEditMode ? 'License updated!' : 'License created!');
+    if (onSuccess) onSuccess();
+  } catch (err: any) {
+    setError(err.message);
+    toast.error(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Handles copying the license key to clipboard
   const handleCopy = (text: string) => {
@@ -401,13 +422,14 @@ const handleSaveCustomPlan = () => {
         <p className="text-red-500 mb-4">No subscription plans available. Please add plans to the database.</p>
       )}
 
-      <button
-        type="submit"
-        disabled={loading || plansLoading || plans.length === 0 || !form.selectedPlanId}
-        className="w-full bg-black text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {loading ? 'Generating...' : 'Generate License Key'}
-      </button>
+<button
+  type="submit"
+  disabled={loading || plansLoading || plans.length === 0 || !form.selectedPlanId}
+  className="w-full bg-black text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  {loading ? (isEditMode ? 'Updating...' : 'Generating...') : isEditMode ? 'Update License' : 'Generate License Key'}
+</button>
+
 
       {/* Display generated license key */}
       {licenseKey && (

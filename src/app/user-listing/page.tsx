@@ -25,7 +25,7 @@ export default function UserListingPage({
     <main className="w-full h-full bg-gray-100 flex flex-col overflow-hidden">
       {/* Content area */}
       <div className="flex-grow w-full overflow-auto">
-        <UserListing search={searchQuery} refresh={refreshList} />
+        <UserListing search={searchQuery} refresh={refreshList} toggleRefresh={toggleRefresh}/>
       </div>
 
       {/* Dialog for insert */}
